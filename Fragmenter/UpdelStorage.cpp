@@ -547,7 +547,7 @@ void InsertOrderFragmenter::updateColumns(
          i < num_worker_threads && start_entry < num_entries;
          ++i, start_entry += stride) {
       const auto end_entry = std::min(start_entry + stride, num_rows);
-      worker_threads.push_back(utils::async(
+      worker_threads.push_back(utils::async(  // parallel for with blocked range
           [&row_converter](const size_t start, const size_t end) {
             for (size_t indexOfRow = start; indexOfRow < end; ++indexOfRow) {
               row_converter(indexOfRow);
@@ -663,7 +663,7 @@ void InsertOrderFragmenter::updateColumn(const Catalog_Namespace::Catalog* catal
     updel_roll.dirtyChunkeys.insert(chunkey);
   }
   for (size_t rbegin = 0, c = 0; rbegin < nrow; ++c, rbegin += segsz) {
-    threads.emplace_back(utils::async([=,
+    threads.emplace_back(utils::async([=,  // parallel for
                                        &has_null_per_thread,
                                        &min_int64t_per_thread,
                                        &max_int64t_per_thread,
@@ -1049,17 +1049,19 @@ const std::vector<uint64_t> InsertOrderFragmenter::getVacuumOffsets(
   deleted_offsets.resize(ncore);
   std::vector<std::future<void>> threads;
   for (size_t rbegin = 0; rbegin < nrows_in_chunk; rbegin += segsz) {
-    threads.emplace_back(utils::async([=, &deleted_offsets] {
-      const auto rend = std::min<size_t>(rbegin + segsz, nrows_in_chunk);
-      const auto ithread = rbegin / segsz;
-      CHECK(ithread < deleted_offsets.size());
-      deleted_offsets[ithread].reserve(segsz);
-      for (size_t r = rbegin; r < rend; ++r) {
-        if (data_addr[r]) {
-          deleted_offsets[ithread].push_back(r);
-        }
-      }
-    }));
+    threads.emplace_back(
+        utils::async([=, &deleted_offsets] {  // parallel for/reduce with reduction to
+                                              // vector of all elements
+          const auto rend = std::min<size_t>(rbegin + segsz, nrows_in_chunk);
+          const auto ithread = rbegin / segsz;
+          CHECK(ithread < deleted_offsets.size());
+          deleted_offsets[ithread].reserve(segsz);
+          for (size_t r = rbegin; r < rend; ++r) {
+            if (data_addr[r]) {
+              deleted_offsets[ithread].push_back(r);
+            }
+          }
+        }));
   }
   wait_cleanup_threads(threads);
   std::vector<uint64_t> all_deleted_offsets;
@@ -1292,9 +1294,9 @@ void InsertOrderFragmenter::compactRows(const Catalog_Namespace::Catalog* catalo
     };
 
     if (is_varlen) {
-      threads.emplace_back(utils::async(varlen_vacuum));
+      threads.emplace_back(utils::async(varlen_vacuum));  // task_group or parallel_for
     } else {
-      threads.emplace_back(utils::async(fixlen_vacuum));
+      threads.emplace_back(utils::async(fixlen_vacuum));  // task_group or parallel_for
     }
     if (threads.size() >= (size_t)cpu_threads()) {
       wait_cleanup_threads(threads);
