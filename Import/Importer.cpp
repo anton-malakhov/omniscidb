@@ -3655,7 +3655,7 @@ ImportStatus Importer::importDelimited(const std::string& file_path,
       stack_thread_ids.pop();
       // LOG(INFO) << " stack_thread_ids.pop " << thread_id << std::endl;
 
-      threads.push_back(utils::async([thread_id,    // pipeline/graph?
+      threads.push_back(utils::async([thread_id,    // pipeline/graph or task_group (with reduction), IO
                                       this,
                                       sb{std::move(scratch_buffer)},
                                       begin_pos,
@@ -4517,7 +4517,7 @@ ImportStatus Importer::importGDAL(
     set_import_status(import_id, import_status);
 #else
     // fire up that thread to import this geometry
-    threads.push_back(utils::async(import_thread_shapefile,   // pipeline?
+    threads.push_back(utils::async(import_thread_shapefile,   // pipeline/graph or task_group (with reduction), IO
                                    thread_id,
                                    this,
                                    poGeographicSR.get(),

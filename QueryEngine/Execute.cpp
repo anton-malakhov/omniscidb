@@ -1789,7 +1789,7 @@ void Executor::dispatchFragments(
       }
       CHECK_GE(device_id, 0);
 
-      query_threads.push_back(utils::async(dispatch,
+      query_threads.push_back(utils::async(dispatch,    // used in nested/[custom]range2d parallel for
                                            device_type,
                                            device_id,
                                            query_comp_desc,
