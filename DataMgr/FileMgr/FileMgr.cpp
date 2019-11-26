@@ -185,7 +185,7 @@ void FileMgr::init(const size_t num_reader_threads) {
                   << " Num pages: " << numPages;
 
           file_futures.emplace_back(
-              utils::async([filePath, fileId, pageSize, numPages, this] {
+              utils::async([filePath, fileId, pageSize, numPages, this] { // parallel IO pipeline with TLS combinable vectors
                 std::vector<HeaderInfo> tempHeaderVec;
                 openExistingFile(filePath, fileId, pageSize, numPages, tempHeaderVec);
                 return tempHeaderVec;
@@ -348,7 +348,7 @@ void FileMgr::init(const std::string dataPathToConvertFrom) {
           size_t numPages = fileSize / pageSize;
 
           file_futures.emplace_back(
-              utils::async([filePath, fileId, pageSize, numPages, this] {
+              utils::async([filePath, fileId, pageSize, numPages, this] { // parallel IO pipeline with TLS combinable vectors
                 std::vector<HeaderInfo> tempHeaderVec;
                 openExistingFile(filePath, fileId, pageSize, numPages, tempHeaderVec);
                 return tempHeaderVec;
@@ -879,7 +879,7 @@ FileInfo* FileMgr::openExistingFile(const std::string& path,
   fInfo->openExistingFile(headerVec, epoch_);
   mapd_unique_lock<mapd_shared_mutex> write_lock(files_rw_mutex_);
   if (fileId >= static_cast<int>(files_.size())) {
-    files_.resize(fileId + 1);
+    files_.resize(fileId + 1); // TODO: resize in advance
   }
   files_[fileId] = fInfo;
   fileIndex_.insert(std::pair<size_t, int>(pageSize, fileId));

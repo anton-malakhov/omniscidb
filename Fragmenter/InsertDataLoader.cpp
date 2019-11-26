@@ -267,7 +267,7 @@ InsertData copyDataOfShard(const Catalog_Namespace::Catalog& cat,
 
   std::vector<std::future<BlockWithColumnId>> worker_threads;
   for (size_t col = 0; col < insert_data.columnIds.size(); col++) {
-    worker_threads.push_back(utils::async(copycat, col));
+    worker_threads.push_back(utils::async(copycat, col));  // parallel for loop, writting into shared "shardData" arrays
   }
 
   for (auto& child : worker_threads) {
@@ -314,7 +314,7 @@ void InsertDataLoader::insertData(const Catalog_Namespace::SessionInfo& session_
     std::vector<std::future<void>> worker_threads;
     for (size_t shardId = 0; shardId < rowIndicesOfShards.size(); shardId++) {
       if (rowIndicesOfShards[shardId].size() > 0) {
-        worker_threads.push_back(utils::async(insertShardData, shardId));
+        worker_threads.push_back(utils::async(insertShardData, shardId)); // parallel for with bad lock inside
       }
     }
     for (auto& child : worker_threads) {
