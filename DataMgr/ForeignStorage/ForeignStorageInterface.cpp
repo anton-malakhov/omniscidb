@@ -168,13 +168,13 @@ class ForeignStorageBufferMgr : public Data_Namespace::AbstractBufferMgr {
           auto& index_buf = *(chunk_index_.find(subkey)->second);
           auto bs = index_buf.size() / index_buf.sql_type.get_size();
           ChunkMetadata m{type, size, bs, ChunkStats{}};
-          chunkMetadataVec.push_back(std::make_pair(chunk_key, m));
+          chunkMetadataVec.emplace_back(chunk_key, m);
         }
       } else {
         const auto& buffer = *chunk_it->second;
         ChunkMetadata m{buffer.sql_type};
         buffer.encoder->getMetadata(m);
-        chunkMetadataVec.push_back(std::make_pair(chunk_key, m));
+        chunkMetadataVec.emplace_back(chunk_key, m);
       }
       chunk_it++;
     }
@@ -271,8 +271,9 @@ Data_Namespace::AbstractBufferMgr* ForeignStorageInterface::lookupBufferManager(
   static std::map<std::pair<int, int>, Data_Namespace::AbstractBufferMgr*> managers_map_;
 
   auto key = std::make_pair(db_id, table_id);
-  if (managers_map_.count(key))
+  if (managers_map_.count(key)) {
     return managers_map_[key];
+  }
 
   std::lock_guard<std::mutex> persistent_storage_interfaces_lock(
       persistent_storage_interfaces_mutex_);
