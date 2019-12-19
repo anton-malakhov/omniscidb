@@ -377,7 +377,7 @@ void ArrowCsvForeignStorage::registerTable(Catalog_Namespace::Catalog* catalog,
         b->encoder.reset(Encoder::Create(b, c.columnType));
         b->has_encoder = true;
         if (!empty) {
-          // asynchronously update stats for incoming data 
+          // asynchronously update stats for incoming data
           tg->Append([b, fr = &frag]() {
             for (auto chunk : fr->chunks) {
               auto len = chunk->length;
@@ -391,7 +391,7 @@ void ArrowCsvForeignStorage::registerTable(Catalog_Namespace::Catalog* catalog,
       }
     }
   }  // each col and fragment
-  
+
   // wait untill all stats have been updated
   r = tg->Finish();
   ARROW_THROW_NOT_OK(r);
