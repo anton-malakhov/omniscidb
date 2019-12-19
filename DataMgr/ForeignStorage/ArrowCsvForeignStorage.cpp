@@ -63,45 +63,6 @@ void ArrowCsvForeignStorage::append(
   CHECK(false);
 }
 
-#if 0
-// There are two options how to deal with custom column builder:
-// 1. define a custom DataType and extend Converter::Make in order to create a custom converter.
-// https://github.com/apache/arrow/blob/2825452dfc883fde5723656001b2bb1fc9e9c029/cpp/src/arrow/csv/converter.cc#L409
-// On the pro side - there is no change in public API because convert_options_.column_types maps to DataTypes
-// The limitation is that it is still tied to arrow::Array* type for each block, e.g:
-//    Status Convert(const BlockParser& parser, int32_t col_index, std::shared_ptr<Array>* out);
-// while the Finish(std::shared_ptr<ChunkedArray>* out) can be dummy in the following case.
-// 2. define the column builder class itself and hook into
-// https://github.com/apache/arrow/blob/8b0318a11bba2aa2cf39bff245ff916a3283d372/cpp/src/arrow/csv/reader.cc#L179
-class TypedColumnBuilder : public arrow::csv::ColumnBuilder {
- public:
-  TypedColumnBuilder(  // const std::shared_ptr<DataType>& type, int32_t col_index,
-      const arrow::csv::ConvertOptions& options,
-      arrow::MemoryPool* pool,
-      const std::shared_ptr<arrow::internal::TaskGroup>& task_group)
-      : ColumnBuilder(task_group),
-      // type_(type),
-      // col_index_(col_index),
-      options_(options)
-      , pool_(pool) {}
-
-  arrow::Status Init();
-
-  void Insert(int64_t block_index,
-              const std::shared_ptr<arrow::csv::BlockParser>& parser) override;
-  arrow::Status Finish(std::shared_ptr<arrow::ChunkedArray>* out) override;
-
- protected:
-  // std::mutex mutex_;
-  // std::shared_ptr<DataType> type_;
-  // int32_t col_index_;
-  arrow::csv::ConvertOptions options_;
-  arrow::MemoryPool* pool_;
-
-  // std::shared_ptr<Converter> converter_;
-};
-#endif
-
 void ArrowCsvForeignStorage::read(const ChunkKey& chunk_key,
                                   const SQLTypeInfo& sql_type,
                                   int8_t* dest,
@@ -117,16 +78,20 @@ void ArrowCsvForeignStorage::read(const ChunkKey& chunk_key,
   for (auto array_data : frag.chunks) {
     arrow::Buffer* bp = nullptr;
     if (sql_type.is_dict_encoded_string()) {
+      // array_data->buffers[1] stores dictionary indexes
       bp = array_data->buffers[1].get();
     } else if (sql_type.get_type() == kTEXT) {
       CHECK_GE(array_data->buffers.size(), 3UL);
+      // array_data->buffers[2] stores string array
       bp = array_data->buffers[2].get();
     } else if (array_data->null_count != array_data->length) {
+      // any type except strings (none encoded strings offsets go here as well)
       CHECK_GE(array_data->buffers.size(), 2UL);
       bp = array_data->buffers[1].get();
     }
     if (bp) {
-      // Does this chunk_key request offset table for strings?
+      // offset buffer for none encoded strings need to be merged as arrow chunkes sizes
+      // are less then omnisci fragments sizes
       if (chunk_key.size() == 5 && chunk_key[4] == 2) {
         auto data = reinterpret_cast<const uint32_t*>(bp->data());
         auto dest_ui32 = reinterpret_cast<uint32_t*>(dest);
@@ -349,6 +314,7 @@ void ArrowCsvForeignStorage::registerTable(Catalog_Namespace::Catalog* catalog,
           auto stringArray = static_cast<arrow::StringArray*>(chunk);
           indexBuilder.Reserve(stringArray->length());
           for (int i = 0; i < stringArray->length(); i++) {
+            // TODO: use arrow dictionary encoding
             if (stringArray->IsNull(i) || empty ||
                 stringArray->null_count() == stringArray->length()) {
               indexBuilder.Append(inline_int_null_value<int32_t>());
@@ -411,6 +377,7 @@ void ArrowCsvForeignStorage::registerTable(Catalog_Namespace::Catalog* catalog,
         b->encoder.reset(Encoder::Create(b, c.columnType));
         b->has_encoder = true;
         if (!empty) {
+          // asynchronously update stats for incoming data 
           tg->Append([b, fr = &frag]() {
             for (auto chunk : fr->chunks) {
               auto len = chunk->length;
@@ -424,6 +391,8 @@ void ArrowCsvForeignStorage::registerTable(Catalog_Namespace::Catalog* catalog,
       }
     }
   }  // each col and fragment
+  
+  // wait untill all stats have been updated
   r = tg->Finish();
   ARROW_THROW_NOT_OK(r);
   printf("-- created: %d columns, %d chunks, %d frags\n",
