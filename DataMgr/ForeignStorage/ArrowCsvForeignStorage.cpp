@@ -201,7 +201,6 @@ void ArrowCsvForeignStorage::prepareTable(const int db_id,
   td.hasDeletedCol = false;
 }
 
-// TODO: optimize the number of arguments
 void ArrowCsvForeignStorage::registerTable(Catalog_Namespace::Catalog* catalog,
                                            std::pair<int, int> table_key,
                                            const std::string& info,
@@ -349,9 +348,6 @@ void ArrowCsvForeignStorage::registerTable(Catalog_Namespace::Catalog* catalog,
           }
         }
       }
-      // TODO: check
-      // dynamic_cast<arrow::FixedWidthType*>(c0f->type().get())->bit_width()
-      // == b.sql_type.get_size()
 
       // create buffer descriptotrs
       if (ctype == kTEXT && !c.columnType.is_dict_encoded_string()) {
