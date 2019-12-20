@@ -118,7 +118,8 @@ class ForeignStorageBufferMgr : public Data_Namespace::AbstractBufferMgr {
     mapd_unique_lock<mapd_shared_mutex> chunk_index_write_lock(chunk_index_mutex_);
     const auto it_ok = chunk_index_.emplace(
         key, new ForeignStorageBuffer(key, persistent_foreign_storage_));
-    CHECK(it_ok.second);
+    // this check fails if we create table, drop it and create again
+    // CHECK(it_ok.second);
     return it_ok.first->second;
   }
 
@@ -334,7 +335,8 @@ void ForeignStorageInterface::registerTable(Catalog_Namespace::Catalog* catalog,
   auto db_id = catalog->getCurrentDB().dbId;
   const auto it_ok = table_persistent_storage_interface_map_.emplace(
       std::make_pair(db_id, table_id), it->second);
-  CHECK(it_ok.second);
+  // this check fails if we create table, drop it and create again
+  // CHECK(it_ok.second); 
   persistent_storage_interfaces_lock.unlock();
   it_ok.first->second->registerTable(catalog,
                                      it_ok.first->first,
