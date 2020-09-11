@@ -63,6 +63,8 @@
 #include "Shared/mapd_shared_ptr.h"
 #include "Shared/scope.h"
 
+#include <ittnotify.h>
+
 using namespace ::apache::thrift;
 using namespace ::apache::thrift::concurrency;
 using namespace ::apache::thrift::protocol;
@@ -194,9 +196,12 @@ void releaseWarmupSession(TSessionId& sessionId, std::ifstream& query_file) {
   }
 }
 
+__itt_domain* ittquery = __itt_domain_create("Query");
+
 void run_warmup_queries(mapd::shared_ptr<DBHandler> handler,
                         std::string base_path,
                         std::string query_file_path) {
+  ittquery->flags = 1;
   // run warmup queries to load cache if requested
   if (query_file_path.empty()) {
     return;
@@ -245,7 +250,9 @@ void run_warmup_queries(mapd::shared_ptr<DBHandler> handler,
           }
 
           try {
+            __itt_frame_begin_v3(ittquery, (__itt_id*)single_query.c_str());
             g_warmup_handler->sql_execute(ret, sessionId, single_query, true, "", -1, -1);
+            __itt_frame_end_v3(ittquery, (__itt_id*)single_query.c_str());
           } catch (...) {
             LOG(WARNING) << "Exception while executing '" << single_query
                          << "', ignoring";
