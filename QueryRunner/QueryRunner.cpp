@@ -18,6 +18,7 @@
 
 #include "Calcite/Calcite.h"
 #include "Catalog/Catalog.h"
+#include "DataMgr/ForeignStorage/ForeignStorageInterface.h"
 #include "DistributedLoader.h"
 #include "Import/CopyParams.h"
 #include "Parser/ParserWrapper.h"
@@ -88,6 +89,24 @@ std::unique_ptr<QueryRunner> QueryRunner::qr_instance_ = nullptr;
 query_state::QueryStates QueryRunner::query_states_;
 
 QueryRunner* QueryRunner::init(const char* db_path,
+                               const std::string& udf_filename,
+                               const size_t max_gpu_mem,
+                               const int reserved_gpu_mem) {
+  return QueryRunner::init(db_path,
+                           std::make_shared<ForeignStorageInterface>(),
+                           std::string{OMNISCI_ROOT_USER},
+                           "HyperInteractive",
+                           std::string{OMNISCI_DEFAULT_DB},
+                           {},
+                           {},
+                           udf_filename,
+                           true,
+                           max_gpu_mem,
+                           reserved_gpu_mem);
+}
+
+QueryRunner* QueryRunner::init(const char* db_path,
+                               std::shared_ptr<ForeignStorageInterface> fsi,
                                const std::string& user,
                                const std::string& pass,
                                const std::string& db_name,
@@ -102,6 +121,7 @@ QueryRunner* QueryRunner::init(const char* db_path,
   LOG_IF(FATAL, !leaf_servers.empty()) << "Distributed test runner not supported.";
   CHECK(leaf_servers.empty());
   qr_instance_.reset(new QueryRunner(db_path,
+                                     fsi,
                                      user,
                                      pass,
                                      db_name,
@@ -117,6 +137,7 @@ QueryRunner* QueryRunner::init(const char* db_path,
 }
 
 QueryRunner::QueryRunner(const char* db_path,
+                         std::shared_ptr<ForeignStorageInterface> fsi,
                          const std::string& user_name,
                          const std::string& passwd,
                          const std::string& db_name,
@@ -157,11 +178,12 @@ QueryRunner::QueryRunner(const char* db_path,
   mapd_params.aggregator = !leaf_servers.empty();
 
   auto data_mgr = std::make_shared<Data_Namespace::DataMgr>(
-      data_dir.string(), mapd_params, uses_gpus, -1, 0, reserved_gpu_mem);
+      data_dir.string(), fsi, mapd_params, uses_gpus, -1, 0, reserved_gpu_mem);
 
   auto& sys_cat = Catalog_Namespace::SysCatalog::instance();
 
   sys_cat.init(base_path.string(),
+               fsi,
                data_mgr,
                {},
                g_calcite,
@@ -185,7 +207,7 @@ QueryRunner::QueryRunner(const char* db_path,
   CHECK(sys_cat.getMetadataForDB(db_name, db));
   CHECK(user.isSuper || (user.userId == db.dbOwner));
   auto cat = std::make_shared<Catalog_Namespace::Catalog>(
-      base_path.string(), db, data_mgr, string_servers, g_calcite, create_db);
+      base_path.string(), fsi, db, data_mgr, string_servers, g_calcite, create_db);
   Catalog_Namespace::Catalog::set(cat->getCurrentDB().dbName, cat);
   session_info_ = std::make_unique<Catalog_Namespace::SessionInfo>(
       cat, user, ExecutorDeviceType::GPU, "");
@@ -439,7 +461,7 @@ ExecutionResult run_select_query_with_filter_push_down(
                                       true)
                             .plan_result;
   auto result = RelAlgExecutor(executor.get(), cat, query_ra)
-                    .executeRelAlgQuery(co, eo, false, nullptr);
+      .executeRelAlgQuery(co, eo.with_multifrag_result(g_enable_multifrag_rs), false, nullptr);
   const auto& filter_push_down_requests = result.getPushedDownFilterInfo();
   if (!filter_push_down_requests.empty()) {
     std::vector<TFilterPushDownInfo> filter_push_down_info;
@@ -503,7 +525,6 @@ ExecutionResult QueryRunner::runSelectQuery(const std::string& query_str,
   auto executor = Executor::getExecutor(cat.getCurrentDB().dbId);
   CompilationOptions co = CompilationOptions::defaults(device_type);
   co.opt_level = ExecutorOptLevel::LoopStrengthReduction;
-
   ExecutionOptions eo = {g_enable_columnar_output,
                          true,
                          just_explain,
@@ -529,7 +550,7 @@ ExecutionResult QueryRunner::runSelectQuery(const std::string& query_str,
                                       true)
                             .plan_result;
   return RelAlgExecutor(executor.get(), cat, query_ra)
-      .executeRelAlgQuery(co, eo, false, nullptr);
+      .executeRelAlgQuery(co, eo.with_multifrag_result(g_enable_multifrag_rs), false, nullptr);
 }
 
 ExecutionResult QueryRunner::runSelectQueryRA(const std::string& query_str,
@@ -573,7 +594,7 @@ ExecutionResult QueryRunner::runSelectQueryRA(const std::string& query_str,
                          1000};
   auto calcite_mgr = cat.getCalciteMgr();
   return RelAlgExecutor(executor.get(), cat, actual_query)
-      .executeRelAlgQuery(co, eo, false, nullptr);
+      .executeRelAlgQuery(co, eo.with_multifrag_result(g_enable_multifrag_rs), false, nullptr);
 }
 
 const std::shared_ptr<std::vector<int32_t>>& QueryRunner::getCachedJoinHashTable(

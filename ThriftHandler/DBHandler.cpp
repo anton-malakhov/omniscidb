@@ -193,7 +193,8 @@ DBHandler::DBHandler(const std::vector<LeafHostInfo>& db_leaves,
                      const bool enable_runtime_udf_registration,
                      const std::string& udf_filename,
                      const std::string& clang_path,
-                     const std::vector<std::string>& clang_options)
+                     const std::vector<std::string>& clang_options,
+                     std::shared_ptr<ForeignStorageInterface> fsi)
     : leaf_aggregator_(db_leaves)
     , string_leaves_(string_leaves)
     , base_data_path_(base_data_path)
@@ -212,9 +213,17 @@ DBHandler::DBHandler(const std::vector<LeafHostInfo>& db_leaves,
     , max_session_duration_(max_session_duration * 60)
     , runtime_udf_registration_enabled_(enable_runtime_udf_registration) {
   LOG(INFO) << "OmniSci Server " << MAPD_RELEASE;
-  // Register foreign storage interfaces here
-  registerArrowCsvForeignStorage();
   bool is_rendering_enabled = enable_rendering;
+
+  // Prebuilt FSI is used in tests when both QueryRunner and DBHandler
+  // are used at the same time and have to share FSI.
+  if (fsi) {
+    fsi_ = fsi;
+  } else {
+    fsi_.reset(new ForeignStorageInterface());
+    // Register foreign storage interfaces here
+    registerArrowCsvForeignStorage(fsi_);
+  }
 
   try {
     if (cpu_only) {
@@ -246,6 +255,7 @@ DBHandler::DBHandler(const std::vector<LeafHostInfo>& db_leaves,
 
   try {
     data_mgr_.reset(new Data_Namespace::DataMgr(data_path.string(),
+                                                fsi_,
                                                 mapd_parameters,
                                                 !cpu_mode_only_,
                                                 num_gpus,
@@ -314,6 +324,7 @@ DBHandler::DBHandler(const std::vector<LeafHostInfo>& db_leaves,
 
   try {
     SysCatalog::instance().init(base_data_path_,
+                                fsi_,
                                 data_mgr_,
                                 authMetadata,
                                 calcite_,
