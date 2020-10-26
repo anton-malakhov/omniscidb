@@ -1,0 +1,53 @@
+#
+#  This is statistics aggregation recipe for Bearysta.
+#
+#  Install Bearysta:
+#     python -m pip install git+https://github.com/IntelPython/bearysta.git
+#
+#  Run aggregation:
+#     python -m bearysta.aggregate omnisci-query-times.yml -P
+#
+
+input:
+    path: runs/*/run-roofline-bench/default/*.out
+    format: csv
+    csv-header: 'run#,ms,best_ms,GB_s'
+    # Transform lines from log text into csv format. Drop other, unused lines
+    filter:
+        '^ +Run #(\d+) of \d+... done in ([.0-9]+)ms[.: (]+best thread ([.0-9]+)ms[.): ]+([.0-9]+) [GiB/s]+$': ' \1,\2,\3,\4'
+        '^ +Run #(\d+) of \d+... done in ([.0-9]+)ms[.: (]+best thread ([.0-9]+)ms[.): ]+[0-9.M]+ iter/s \(([.0-9]+) [GiB/s)]+$': ' \1,\2,\3,\4'
+        '^(?!\s)': drop
+        '^   Running': drop
+        '^   WARNING!': drop
+
+rename:
+    OMP_NUM_THREADS: threads
+
+# Aggregation method (e.g. min, median, max, mean)
+aggregation: max
+
+# Axis and series column names
+axis:
+    - config
+series:
+    - threads
+    - cpus
+    - numa
+
+values:
+    - GB_s
+
+# Create another table (or Excel filter) for each value in these columns
+#variants:
+#    - queryID
+
+# Are higher values better?
+higher-is-better: false
+
+# Number format in Python str.format() style, or the number of digits of
+# precision to show in numbers in pretty-printed pivot tables
+number-format: 2
+
+# Do we figure out the number of decimals only once, using the max value,
+# and disregard smaller precision numbers?
+number-format-max-only: false

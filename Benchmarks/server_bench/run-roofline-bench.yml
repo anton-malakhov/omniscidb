@@ -1,0 +1,36 @@
+#
+#  This is benchmark execution recipe for Bearysta.
+#
+#  Install Bearysta:
+#     python -m pip install git+https://github.com/IntelPython/bearysta.git
+#
+#  Run recipe:
+#     python -m bearysta.run --bench-path run-omnisci-bench.yml
+#
+
+variables:
+    batch: [1, 2, 3, 4, 5]
+    affinity:
+        - all
+        - all --no-ht
+        - all --n0-only
+        - all --n0-only --no-ht
+        - half --no-ht
+    config:
+        - memset --width 64
+        - memcpy --width 64
+        - taxi-q1 --width 8
+        - taxi-q2 --width 8
+        - taxi-q3 --width 8
+        - taxi-q4 --width 8
+
+    numa:
+        - -m 0,1
+        - -m 0
+        - -m 1
+        - -i 0,1
+    OMP_NUM_THREADS: $(./list_cpu_affinity.py --total $affinity)
+    cpus: $(./list_cpu_affinity.py $affinity)
+
+commands:
+    roofline: sh -c "numactl -C $cpus $numa build/roofline $config --iters 5 --threads=$OMP_NUM_THREADS 2>&1"

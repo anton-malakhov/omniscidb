@@ -6,7 +6,7 @@ set -ex
 # https://github.com/conda-forge/omniscidb-feedstock/issues/5
 df -h
 
-export EXTRA_CMAKE_OPTIONS=""
+export EXTRA_CMAKE_OPTIONS="$*"
 
 # Make sure -fPIC is not in CXXFLAGS (that some conda packages may
 # add), otherwise omniscidb server will crash when executing generated

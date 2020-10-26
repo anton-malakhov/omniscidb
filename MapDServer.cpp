@@ -217,8 +217,9 @@ void run_warmup_queries(mapd::shared_ptr<DBHandler> handler,
     TSessionId sessionId = g_warmup_handler->getInvalidSessionId();
 
     ScopeGuard session_guard = [&] { releaseWarmupSession(sessionId, query_file); };
+    bool stop = false;
     query_file.open(query_file_path);
-    while (std::getline(query_file, db_info)) {
+    while (!stop && std::getline(query_file, db_info)) {
       if (db_info.length() == 0) {
         continue;
       }
@@ -253,9 +254,12 @@ void run_warmup_queries(mapd::shared_ptr<DBHandler> handler,
             __itt_frame_begin_v3(ittquery, (__itt_id*)single_query.c_str());
             g_warmup_handler->sql_execute(ret, sessionId, single_query, true, "", -1, -1);
             __itt_frame_end_v3(ittquery, (__itt_id*)single_query.c_str());
+          } catch (std::exception &e) {
+            LOG(WARNING) << "Exception " << e.what() << " while executing '" << single_query;
+            stop = true; break;
           } catch (...) {
-            LOG(WARNING) << "Exception while executing '" << single_query
-                         << "', ignoring";
+            LOG(WARNING) << "Unknown exception while executing '" << single_query;
+            stop = true; break;
           }
           single_query.clear();
         }

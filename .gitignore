@@ -80,6 +80,8 @@ java/thrift/src/
 
 ThirdParty/
 data/
+Benchmarks/server_bench/data/
+Benchmarks/server_bench/runs/
 
 # IntelliJ/CLion settings files
 .idea
