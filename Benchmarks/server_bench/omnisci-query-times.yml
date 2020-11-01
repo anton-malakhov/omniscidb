@@ -37,14 +37,15 @@ series:
 
 values:
     - execution_time_ms
-#    - total_time_ms
+    - total_time_ms
 
 # Create another table (or Excel filter) for each value in these columns
 variants:
-    - config
+    - rows
 
 precomputed:
     query: "read_csv('explain-queryID.csv', header=None, index_col=0, squeeze=True).to_dict().get(row['queryID'], row['queryID'])"
+    itersec: "1000*row['rows']/row['execution_time_ms']"
 
 # Are higher values better?
 higher-is-better: false

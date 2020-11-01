@@ -25,7 +25,7 @@ variables:
         - taxi-q4 --width 8
 
     numa:
-        - -m 0,1
+        - -a
         - -m 0
         - -m 1
         - -i 0,1
