@@ -31,15 +31,15 @@ axis:
     - config
 series:
     - threads
-    - cpus
+    - affinity
     - numa
 
 values:
     - GB_s
 
 # Create another table (or Excel filter) for each value in these columns
-#variants:
-#    - queryID
+variants:
+    - hostname
 
 # Are higher values better?
 higher-is-better: false

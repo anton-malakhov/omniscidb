@@ -33,4 +33,4 @@ variables:
     cpus: $(./list_cpu_affinity.py $affinity)
 
 commands:
-    roofline: sh -c "numactl -C $cpus $numa build/roofline $config --iters 5 --threads=$OMP_NUM_THREADS 2>&1"
+    roofline: sh -c "numactl $numa -C $cpus build/roofline $config --iters 5 --threads=$OMP_NUM_THREADS 2>&1"
