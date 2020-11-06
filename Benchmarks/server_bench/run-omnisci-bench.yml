@@ -19,6 +19,10 @@ variables:
     rows:
         - 20
         - 200
+    frags:
+        - 250000
+        - 2500000
+        - 5000000
     numa:
         - '-a'
         - '-m 0'
@@ -28,4 +32,5 @@ variables:
     cpus: $(./list_cpu_affinity.py $affinity)
 
 commands:
-    nyct: numactl $numa -C $cpus ../../build/bin/omnisci_server --config omnisci-bench-nyct-$rows.conf 2>&1
+    taxi: ./run-omnisci.sh
+    #directly it is: numactl $numa -C $cpus ../../build/bin/omnisci_server --config omnisci-bench-nyct-$rows.conf 2>&1
