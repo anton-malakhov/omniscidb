@@ -17,20 +17,24 @@ variables:
         - all --n0-only --no-ht
         - half --no-ht
     config:
-        - memset --width 64
-        - memcpy --width 64
+        - memset
+        - memcpy
+        - simple-scan --width 8
         - taxi-q1 --width 8
         - taxi-q2 --width 8
         - taxi-q3 --width 8
         - taxi-q4 --width 8
+        - tpc-h-q1
+        - tpc-h-q11
+        - tpc-h-q5
 
     numa:
         - -a
-        - -m 0
-        - -m 1
+        #- -m 0
+        #- -m 1
         - -i 0,1
     OMP_NUM_THREADS: $(./list_cpu_affinity.py --total $affinity)
     cpus: $(./list_cpu_affinity.py $affinity)
 
 commands:
-    roofline: sh -c "numactl $numa -C $cpus build/roofline $config --iters 5 --threads=$OMP_NUM_THREADS 2>&1"
+    roofline: sh -c "numactl $numa -C $cpus build/roofline $config --iters 5 --threads=$OMP_NUM_THREADS --yaml-file $outprefix.yml 2>&1; build/roofline report --no-sys-params --yaml-file $outprefix.yml | tee $outprefix.csv"

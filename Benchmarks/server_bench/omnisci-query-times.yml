@@ -10,7 +10,7 @@
 
 input:
     # direct logs are in 'data/mapd_log/omnisci_server.INFO.*.log'
-    path: runs/*/run-omnisci-bench/default/*.out
+    path: runs/*/run-omnisci-bench/*/*.out
     format: csv
     csv-header: 'op,logID,queryID,execution_time_ms,total_time_ms'
     # Transform lines from log text into csv format. Drop other, unused lines
@@ -23,11 +23,12 @@ rename:
     OMP_NUM_THREADS: threads
 
 # Aggregation method (e.g. min, median, max, mean)
-aggregation: mean
+aggregation: max
 
 # Axis and series column names
 axis:
     - query
+    - frags
 
 series:
     - threads
@@ -37,8 +38,8 @@ series:
 
 values:
     - GB_s
-    - execution_time_ms
-    - total_time_ms
+#    - execution_time_ms
+#    - total_time_ms
 
 # Create another table (or Excel filter) for each value in these columns
 variants:
