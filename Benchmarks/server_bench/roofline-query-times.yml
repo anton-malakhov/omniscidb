@@ -9,19 +9,13 @@
 #
 
 input:
-    path: runs/*/run-roofline-bench/*/*.out
+    path: runs/*/run-roofline-bench/*/*.csv
+    # csv header is: operation,part,threads,GiB/s,IPS(M)
     format: csv
-    csv-header: 'run#,ms,best_ms,GB_s'
-    # Transform lines from log text into csv format. Drop other, unused lines
-    filter:
-        '^ +Run #(\d+) of \d+... done in ([.0-9]+)ms[.: (]+best thread ([.0-9]+)ms[.): ]+([.0-9]+) [GiB/s]+$': ' \1,\2,\3,\4'
-        '^ +Run #(\d+) of \d+... done in ([.0-9]+)ms[.: (]+best thread ([.0-9]+)ms[.): ]+[0-9.M]+ iter/s \(([.0-9]+) [GiB/s)]+$': ' \1,\2,\3,\4'
-        '^(?!\s)': drop
-        '^   Running': drop
-        '^   WARNING!': drop
 
 rename:
-    OMP_NUM_THREADS: threads
+#    OMP_NUM_THREADS: threads
+    GiB/s: GB_s
 
 # Aggregation method (e.g. min, median, max, mean)
 aggregation: max
@@ -29,6 +23,9 @@ aggregation: max
 # Axis and series column names
 axis:
     - config
+    #- operation
+    - part
+
 series:
     - threads
     - affinity
@@ -42,7 +39,7 @@ variants:
     - hostname
 
 # Are higher values better?
-higher-is-better: false
+higher-is-better: true
 
 # Number format in Python str.format() style, or the number of digits of
 # precision to show in numbers in pretty-printed pivot tables
