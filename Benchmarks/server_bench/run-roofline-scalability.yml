@@ -5,7 +5,7 @@
 #     python -m pip install git+https://github.com/IntelPython/bearysta.git
 #
 #  Run recipe:
-#     python -m bearysta.run --bench-path run-omnisci-bench.yml
+#     python -m bearysta.run --bench-path run-omnisci-scalability.yml
 #
 
 variables:
