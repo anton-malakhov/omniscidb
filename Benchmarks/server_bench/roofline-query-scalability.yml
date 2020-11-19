@@ -9,7 +9,7 @@
 #
 
 input:
-    path: runs/*/run-roofline-scalability/*/*.csv
+    path: runs/*/run-roofline-*/*/*.csv
     # csv header is: operation,part,threads,GiB/s,IPS(M)
     format: csv
 
@@ -23,7 +23,7 @@ aggregation: max
 # Axis and series column names
 axis:
     - config
-    #- operation
+    - operation
     - part
 
 series:
