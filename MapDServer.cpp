@@ -244,6 +244,13 @@ void run_warmup_queries(mapd::shared_ptr<DBHandler> handler,
             single_query.clear();
             break;
           }
+          if(single_query[0] == '/') {
+            if(single_query == "/itt_resume")
+              __itt_resume();
+            else if(single_query == "/itt_pause")
+              __itt_pause();
+            single_query.clear();
+          }
           if (single_query.find(';') == single_query.npos) {
             std::string multiline_query;
             std::getline(query_file, multiline_query, ';');
@@ -263,6 +270,7 @@ void run_warmup_queries(mapd::shared_ptr<DBHandler> handler,
           }
           single_query.clear();
         }
+        __itt_detach();
 
         // stop session and disconnect from the DB
         g_warmup_handler->disconnect(sessionId);
