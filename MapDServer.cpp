@@ -62,8 +62,9 @@
 #include "Shared/file_delete.h"
 #include "Shared/mapd_shared_ptr.h"
 #include "Shared/scope.h"
-
+#if ENABLE_ITT
 #include <ittnotify.h>
+#endif
 
 using namespace ::apache::thrift;
 using namespace ::apache::thrift::concurrency;
@@ -196,12 +197,12 @@ void releaseWarmupSession(TSessionId& sessionId, std::ifstream& query_file) {
   }
 }
 
+#if ENABLE_ITT
 __itt_domain* ittquery = __itt_domain_create("Query");
-
+#endif
 void run_warmup_queries(mapd::shared_ptr<DBHandler> handler,
                         std::string base_path,
                         std::string query_file_path) {
-  ittquery->flags = 1;
   // run warmup queries to load cache if requested
   if (query_file_path.empty()) {
     return;
@@ -244,13 +245,16 @@ void run_warmup_queries(mapd::shared_ptr<DBHandler> handler,
             single_query.clear();
             break;
           }
+#if ENABLE_ITT          
           if(single_query[0] == '/') {
             if(single_query == "/itt_resume")
               __itt_resume();
             else if(single_query == "/itt_pause")
               __itt_pause();
             single_query.clear();
+            continue;
           }
+#endif
           if (single_query.find(';') == single_query.npos) {
             std::string multiline_query;
             std::getline(query_file, multiline_query, ';');
@@ -258,9 +262,13 @@ void run_warmup_queries(mapd::shared_ptr<DBHandler> handler,
           }
 
           try {
+#if ENABLE_ITT            
             __itt_frame_begin_v3(ittquery, (__itt_id*)single_query.c_str());
+#endif
             g_warmup_handler->sql_execute(ret, sessionId, single_query, true, "", -1, -1);
+#if ENABLE_ITT
             __itt_frame_end_v3(ittquery, (__itt_id*)single_query.c_str());
+#endif
           } catch (std::exception &e) {
             LOG(WARNING) << "Exception " << e.what() << " while executing '" << single_query;
             stop = true; break;
@@ -270,8 +278,9 @@ void run_warmup_queries(mapd::shared_ptr<DBHandler> handler,
           }
           single_query.clear();
         }
+#if ENABLE_ITT
         __itt_detach();
-
+#endif
         // stop session and disconnect from the DB
         g_warmup_handler->disconnect(sessionId);
         sessionId = g_warmup_handler->getInvalidSessionId();
@@ -1216,6 +1225,8 @@ void heartbeat() {
 }
 
 int startMapdServer(MapDProgramOptions& prog_config_opts, bool start_http_server = true) {
+  __itt_pause();
+
   // try to enforce an orderly shutdown even after a signal
   register_signal_handlers();
 
