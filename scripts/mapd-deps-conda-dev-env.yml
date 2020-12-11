@@ -11,8 +11,8 @@
 name: omnisci-dev
 channels:
   - local
-  - defaults
   - conda-forge
+  - defaults
 
 dependencies:
   - gxx_linux-64
